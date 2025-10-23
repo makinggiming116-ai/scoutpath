@@ -12,9 +12,15 @@ export default function Profile() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
+    console.log(`📱 Profile page - Raw localStorage data:`, storedUser);
+    
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      console.log(`👤 Profile page - Parsed user:`, parsedUser);
+      console.log(`🆔 Profile page - User ID:`, parsedUser.id);
+      setUser(parsedUser);
     } else {
+      console.log(`❌ Profile page - No user data in localStorage, redirecting to login`);
       setLocation("/");
     }
   }, [setLocation]);

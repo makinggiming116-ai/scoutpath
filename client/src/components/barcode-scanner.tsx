@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
-import { Upload, Camera, Loader2, Sparkles, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Camera, Loader2, Sparkles, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import jsQR from "jsqr";
 
@@ -141,31 +140,6 @@ export function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProps) {
           <p className="text-sm text-destructive text-center font-medium leading-relaxed">{error}</p>
         </div>
       )}
-
-      <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary via-chart-4 to-primary rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-        <Button
-          onClick={handleClick}
-          disabled={isLoading || isProcessing}
-          className="relative w-full h-14 bg-gradient-to-r from-primary via-chart-4 to-primary hover:shadow-2xl transition-all font-black text-lg overflow-hidden"
-          data-testid="button-upload-barcode"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-          <span className="relative flex items-center gap-3">
-            {isLoading || isProcessing ? (
-              <>
-                <Loader2 className="w-6 h-6 animate-spin" />
-                {isLoading ? 'جاري التحقق...' : 'جاري المعالجة...'}
-              </>
-            ) : (
-              <>
-                <Upload className="w-6 h-6" />
-                {previewUrl ? 'اختيار صورة أخرى' : 'رفع صورة الباركود'}
-              </>
-            )}
-          </span>
-        </Button>
-      </div>
     </div>
   );
 }

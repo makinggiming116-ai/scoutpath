@@ -15,23 +15,34 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const response = await apiRequest<{ user: User }>(
+      // Clear any existing user data first
+      localStorage.removeItem("currentUser");
+      
+      console.log(`🔍 Attempting login with barcode: ${barcodeNumber}`);
+      
+      const response = await apiRequest(
         "POST",
         "/api/auth/barcode-login",
         { barcodeNumber }
       );
 
-      if (response.user) {
-        localStorage.setItem("currentUser", JSON.stringify(response.user));
+      const data = await response.json();
+
+      if (data.user) {
+        console.log(`✅ Login successful for user:`, data.user);
+        console.log(`🔍 User ID from server:`, data.user.id);
+        console.log(`📋 Full user data:`, JSON.stringify(data.user, null, 2));
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
         
         toast({
           title: "تم تسجيل الدخول بنجاح",
-          description: `مرحباً ${response.user.name}`,
+          description: `مرحباً ${data.user.name}`,
         });
 
         setLocation("/profile");
       }
     } catch (error: any) {
+      console.error(`❌ Login failed:`, error);
       toast({
         title: "خطأ في تسجيل الدخول",
         description: error.message || "الرقم غير موجود في النظام. يرجى التواصل مع المسؤول.",

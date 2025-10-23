@@ -2,54 +2,19 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { z } from "zod";
 import { barcodeLoginSchema } from "@shared/schema";
-
-// Demo users data (works without Firebase)
-const demoUsers = [
-  {
-    id: "demo-user-1",
-    name: "سعيد محمد خليفة",
-    serial: "112",
-    currentStage: 6,
-    progress: {
-      openedCourses: [1, 2, 3, 4, 5],
-      completedExams: [1, 2, 3],
-      scores: [85, 90, 78],
-    },
-  },
-  {
-    id: "demo-user-2",
-    name: "أحمد محمود السيد",
-    serial: "101",
-    currentStage: 3,
-    progress: {
-      openedCourses: [1, 2],
-      completedExams: [1],
-      scores: [92],
-    },
-  },
-  {
-    id: "demo-user-3",
-    name: "محمد أحمد علي",
-    serial: "105",
-    currentStage: 1,
-    progress: {
-      openedCourses: [],
-      completedExams: [],
-      scores: [],
-    },
-  },
-];
+import { FirestoreUserService } from "./firebase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Barcode login endpoint (Demo mode)
+
+  // Barcode login endpoint (Using Firestore)
   app.post("/api/auth/barcode-login", async (req, res) => {
     try {
       const { barcodeNumber } = barcodeLoginSchema.parse(req.body);
       
       console.log(`🔍 Login attempt with barcode: ${barcodeNumber}`);
 
-      // Find user in demo data
-      const user = demoUsers.find(u => u.serial === barcodeNumber);
+      // Find user in Firestore
+      const user = await FirestoreUserService.findBySerial(barcodeNumber);
 
       if (!user) {
         console.log(`❌ User not found for barcode: ${barcodeNumber}`);
@@ -63,8 +28,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ user });
     } catch (error) {
       console.error("Login error:", error);
-      res.status(400).json({
-        error: "Invalid request",
+      res.status(500).json({
+        error: "Server error",
         message: error instanceof Error ? error.message : "حدث خطأ في تسجيل الدخول",
       });
     }
@@ -74,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const user = demoUsers.find(u => u.id === id);
+      const user = await FirestoreUserService.findById(id);
 
       if (!user) {
         return res.status(404).json({
@@ -105,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updates = updateSchema.parse(req.body);
       
-      const user = demoUsers.find(u => u.id === id);
+      const user = await FirestoreUserService.updateProgress(id, updates);
       if (!user) {
         return res.status(404).json({
           error: "User not found",
@@ -113,17 +78,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update progress
-      if (updates.openedCourses) user.progress.openedCourses = updates.openedCourses;
-      if (updates.completedExams) user.progress.completedExams = updates.completedExams;
-      if (updates.scores) user.progress.scores = updates.scores;
-
       res.json({ user });
     } catch (error) {
       console.error("Update progress error:", error);
-      res.status(400).json({
+      res.status(500).json({
         error: "Update failed",
         message: "فشل تحديث التقدم",
+      });
+    }
+  });
+
+  // Temporary endpoint to fix demo user IDs (remove after use)
+  app.post("/api/admin/fix-demo-ids", async (req, res) => {
+    try {
+      await FirestoreUserService.fixDemoUserIds();
+      res.json({ success: true, message: "Demo user IDs fixed successfully" });
+    } catch (error) {
+      console.error("Fix demo IDs error:", error);
+      res.status(500).json({
+        error: "Fix failed",
+        message: error instanceof Error ? error.message : "فشل إصلاح معرفات المستخدمين",
+      });
+    }
+  });
+
+  // Temporary endpoint to cleanup duplicate users (remove after use)
+  app.post("/api/admin/cleanup-duplicates", async (req, res) => {
+    try {
+      await FirestoreUserService.cleanupDuplicateUsers();
+      res.json({ success: true, message: "Duplicate users cleaned up successfully" });
+    } catch (error) {
+      console.error("Cleanup error:", error);
+      res.status(500).json({
+        error: "Cleanup failed",
+        message: error instanceof Error ? error.message : "فشل تنظيف البيانات المكررة",
+      });
+    }
+  });
+
+  // Temporary endpoint to update users with realistic data (remove after use)
+  app.post("/api/admin/update-realistic-data", async (req, res) => {
+    try {
+      await FirestoreUserService.updateAllUsersWithRealisticData();
+      res.json({ success: true, message: "Users updated with realistic data successfully" });
+    } catch (error) {
+      console.error("Update realistic data error:", error);
+      res.status(500).json({
+        error: "Update failed",
+        message: error instanceof Error ? error.message : "فشل تحديث البيانات الواقعية",
       });
     }
   });

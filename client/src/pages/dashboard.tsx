@@ -39,16 +39,18 @@ export default function Dashboard() {
   if (!user) return null;
 
   const totalCourses = 8;
-  const completedCount = user.progress.completedExams.length;
-  const certificatesCount = user.progress.scores.filter(s => s >= 70).length;
-  const progressPercentage = Math.round((completedCount / totalCourses) * 100);
+  
+  // استخدام currentStage كعدد الدورات المكتملة
+  const completedCount = user.currentStage || 0; // عدد الدورات المكتملة من currentStage
+  const certificatesCount = completedCount; // عدد الشهادات = عدد الدورات المكتملة
+  const progressPercentage = Math.round((completedCount / totalCourses) * 100); // نسبة الإنجاز
 
   const isCourseUnlocked = (courseId: number) => {
     return courseId <= user.currentStage;
   };
 
   const isCourseCompleted = (courseId: number) => {
-    return user.progress.completedExams.includes(courseId);
+    return courseId <= user.currentStage;
   };
 
   return (
