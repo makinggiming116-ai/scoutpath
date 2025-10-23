@@ -72,7 +72,6 @@ export function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProps) {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleFileSelect}
         className="hidden"
         data-testid="input-barcode-file"
