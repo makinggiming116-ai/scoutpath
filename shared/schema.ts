@@ -1,13 +1,20 @@
 import { z } from "zod";
 
-// User Schema for Firestore
+// User Schema matching actual Firestore structure
 export const userSchema = z.object({
   id: z.string(),
   name: z.string(),
-  serialNumber: z.string(),
-  stage: z.number().min(1).max(8),
-  completedCourses: z.array(z.number()).default([]),
-  certificates: z.array(z.number()).default([]),
+  serial: z.string(), // Changed from serialNumber to match Firestore
+  currentStage: z.number().min(1).max(8), // Changed from stage to match Firestore
+  progress: z.object({
+    openedCourses: z.array(z.number()).default([]),
+    completedExams: z.array(z.number()).default([]),
+    scores: z.array(z.number()).default([]),
+  }).default({
+    openedCourses: [],
+    completedExams: [],
+    scores: [],
+  }),
 });
 
 export type User = z.infer<typeof userSchema>;

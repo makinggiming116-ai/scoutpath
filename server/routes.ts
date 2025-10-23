@@ -1,55 +1,65 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import { z } from "zod";
 import { barcodeLoginSchema } from "@shared/schema";
 
-// Initialize Firebase Admin if not already initialized
-if (!getApps().length) {
-  // For now, we'll use a simple configuration
-  // In production, you would use the service account
-  try {
-    initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || "bibleverseapp-d43ac",
-    });
-  } catch (error) {
-    console.error("Firebase Admin initialization error:", error);
-  }
-}
-
-const db = getFirestore();
+// Demo users data (works without Firebase)
+const demoUsers = [
+  {
+    id: "demo-user-1",
+    name: "سعيد محمد خليفة",
+    serial: "112",
+    currentStage: 6,
+    progress: {
+      openedCourses: [1, 2, 3, 4, 5],
+      completedExams: [1, 2, 3],
+      scores: [85, 90, 78],
+    },
+  },
+  {
+    id: "demo-user-2",
+    name: "أحمد محمود السيد",
+    serial: "101",
+    currentStage: 3,
+    progress: {
+      openedCourses: [1, 2],
+      completedExams: [1],
+      scores: [92],
+    },
+  },
+  {
+    id: "demo-user-3",
+    name: "محمد أحمد علي",
+    serial: "105",
+    currentStage: 1,
+    progress: {
+      openedCourses: [],
+      completedExams: [],
+      scores: [],
+    },
+  },
+];
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Barcode login endpoint
+  // Barcode login endpoint (Demo mode)
   app.post("/api/auth/barcode-login", async (req, res) => {
     try {
       const { barcodeNumber } = barcodeLoginSchema.parse(req.body);
+      
+      console.log(`🔍 Login attempt with barcode: ${barcodeNumber}`);
 
-      // Query Firestore for user with this barcode number
-      const usersRef = db.collection("users");
-      const query = usersRef.where("serialNumber", "==", barcodeNumber).limit(1);
-      const snapshot = await query.get();
+      // Find user in demo data
+      const user = demoUsers.find(u => u.serial === barcodeNumber);
 
-      if (snapshot.empty) {
+      if (!user) {
+        console.log(`❌ User not found for barcode: ${barcodeNumber}`);
         return res.status(404).json({
           error: "User not found",
-          message: "الرقم غير موجود في النظام",
+          message: "الرقم غير موجود في النظام. جرب: 112، 101، أو 105",
         });
       }
 
-      const userDoc = snapshot.docs[0];
-      const userData = userDoc.data();
-
-      const user = {
-        id: userDoc.id,
-        name: userData.name || "",
-        serialNumber: userData.serialNumber || barcodeNumber,
-        stage: userData.stage || 1,
-        completedCourses: userData.completedCourses || [],
-        certificates: userData.certificates || [],
-      };
-
+      console.log(`✅ User found: ${user.name}`);
       res.json({ user });
     } catch (error) {
       console.error("Login error:", error);
@@ -64,24 +74,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const userDoc = await db.collection("users").doc(id).get();
+      const user = demoUsers.find(u => u.id === id);
 
-      if (!userDoc.exists) {
+      if (!user) {
         return res.status(404).json({
           error: "User not found",
           message: "المستخدم غير موجود",
         });
       }
-
-      const userData = userDoc.data();
-      const user = {
-        id: userDoc.id,
-        name: userData?.name || "",
-        serialNumber: userData?.serialNumber || "",
-        stage: userData?.stage || 1,
-        completedCourses: userData?.completedCourses || [],
-        certificates: userData?.certificates || [],
-      };
 
       res.json({ user });
     } catch (error) {
@@ -98,25 +98,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateSchema = z.object({
-        completedCourses: z.array(z.number()).optional(),
-        certificates: z.array(z.number()).optional(),
+        openedCourses: z.array(z.number()).optional(),
+        completedExams: z.array(z.number()).optional(),
+        scores: z.array(z.number()).optional(),
       });
 
       const updates = updateSchema.parse(req.body);
       
-      await db.collection("users").doc(id).update(updates);
+      const user = demoUsers.find(u => u.id === id);
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "المستخدم غير موجود",
+        });
+      }
 
-      const updatedDoc = await db.collection("users").doc(id).get();
-      const userData = updatedDoc.data();
-
-      const user = {
-        id: updatedDoc.id,
-        name: userData?.name || "",
-        serialNumber: userData?.serialNumber || "",
-        stage: userData?.stage || 1,
-        completedCourses: userData?.completedCourses || [],
-        certificates: userData?.certificates || [],
-      };
+      // Update progress
+      if (updates.openedCourses) user.progress.openedCourses = updates.openedCourses;
+      if (updates.completedExams) user.progress.completedExams = updates.completedExams;
+      if (updates.scores) user.progress.scores = updates.scores;
 
       res.json({ user });
     } catch (error) {

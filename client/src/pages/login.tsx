@@ -4,7 +4,7 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
-import { Tent } from "lucide-react";
+import { Tent, Sparkles } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -22,7 +22,6 @@ export default function Login() {
       );
 
       if (response.user) {
-        // Store user in session
         localStorage.setItem("currentUser", JSON.stringify(response.user));
         
         toast({
@@ -30,7 +29,6 @@ export default function Login() {
           description: `مرحباً ${response.user.name}`,
         });
 
-        // Navigate to profile
         setLocation("/profile");
       }
     } catch (error: any) {
@@ -45,37 +43,53 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 flex flex-col" dir="rtl">
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen relative overflow-hidden" dir="rtl">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-chart-2/10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(76,175,80,0.1),transparent_50%)]" />
+        <div className="absolute top-20 right-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-10 w-96 h-96 bg-chart-2/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+
+      <div className="relative flex-1 flex flex-col items-center justify-center p-4 min-h-screen">
         <div className="w-full max-w-md space-y-8">
-          {/* Logo and Header */}
-          <div className="text-center space-y-4">
-            <div className="flex justify-center mb-6">
-              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
-                <Tent className="w-12 h-12 text-primary" />
+          {/* Logo with Glow Effect */}
+          <div className="text-center space-y-6">
+            <div className="flex justify-center mb-8 relative">
+              <div className="absolute inset-0 bg-primary/30 rounded-full blur-2xl scale-110" />
+              <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-primary via-primary to-chart-4 flex items-center justify-center border-4 border-primary/30 shadow-2xl hover-elevate transition-transform hover:scale-110">
+                <Tent className="w-14 h-14 text-primary-foreground drop-shadow-lg" />
               </div>
             </div>
             
-            <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-                المسار التدريبي للجوالة
-              </h1>
-              <p className="text-xl md:text-2xl font-semibold text-primary">
-                2025-2030
-              </p>
-              <p className="text-base md:text-lg text-muted-foreground">
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+                <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-l from-primary via-chart-4 to-primary bg-clip-text text-transparent">
+                  المسار التدريبي للجوالة
+                </h1>
+                <Sparkles className="w-6 h-6 text-primary animate-pulse" style={{ animationDelay: '0.5s' }} />
+              </div>
+              <div className="inline-block px-6 py-2 bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 rounded-full border border-primary/30">
+                <p className="text-2xl md:text-3xl font-bold text-primary">
+                  2025-2030
+                </p>
+              </div>
+              <p className="text-lg md:text-xl text-muted-foreground font-medium">
                 رحلة إعداد القادة المستقبليين
               </p>
             </div>
           </div>
 
-          {/* Login Section */}
+          {/* Login Card with Premium Design */}
           <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="text-xl font-semibold text-foreground">
+            <div className="text-center space-y-3 bg-card/50 backdrop-blur-sm p-6 rounded-2xl border border-primary/20 shadow-lg">
+              <h2 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2">
+                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 تسجيل الدخول
+                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.3s' }} />
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 من فضلك استخدم الباركود الخاص بك لاستكمال عملية تسجيل الدخول على المسار التدريبي
               </p>
             </div>
@@ -83,11 +97,13 @@ export default function Login() {
             <BarcodeScanner onScan={handleBarcodeScanned} isLoading={isLoading} />
           </div>
 
-          {/* Footer */}
-          <div className="text-center pt-4">
-            <p className="text-xs text-muted-foreground">
-              مجموعة أولاد العذراء الكشفية والإرشادية
-            </p>
+          {/* Footer with Glow */}
+          <div className="text-center pt-6">
+            <div className="inline-block px-4 py-2 bg-card/70 backdrop-blur-sm rounded-full border border-border shadow-sm">
+              <p className="text-xs text-muted-foreground font-medium">
+                مجموعة أولاد العذراء الكشفية والإرشادية
+              </p>
+            </div>
           </div>
         </div>
       </div>
