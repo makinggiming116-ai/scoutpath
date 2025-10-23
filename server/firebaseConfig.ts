@@ -11,16 +11,28 @@ export function initializeFirebaseAdmin() {
   }
 
   try {
-    // Get ES module equivalent of __dirname
+    // Check for Firebase service account from environment variable (for Render)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      console.log('🔑 Using Service Account from Environment Variable (Production)');
+      
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      
+      const app = initializeApp({
+        credential: cert(serviceAccount),
+        projectId: serviceAccount.project_id,
+      });
+
+      console.log('🔥 Firebase Admin SDK initialized with Environment Variable Service Account');
+      return app;
+    }
+
+    // Check for service account key file (for local development)
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    
-    // Path to service account key file
     const serviceAccountPath = resolve(__dirname, 'serviceAccountKey.json');
     
-    // Check if service account key file exists
     if (existsSync(serviceAccountPath)) {
-      console.log('🔑 Using Service Account Key for Firebase Admin SDK');
+      console.log('🔑 Using Service Account Key File (Local Development)');
       
       const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
       
@@ -29,19 +41,23 @@ export function initializeFirebaseAdmin() {
         projectId: serviceAccount.project_id,
       });
 
-      console.log('🔥 Firebase Admin SDK initialized with Service Account Key');
+      console.log('🔥 Firebase Admin SDK initialized with Service Account Key File');
       return app;
-    } else {
-      console.log('⚠️ Service Account Key not found, using project ID only');
-      
-      // Fallback to using project ID only (for development)
-      const app = initializeApp({
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'bibleverseapp-d43ac',
-      });
+    } 
 
-      console.log('🔥 Firebase Admin SDK initialized with Project ID');
-      return app;
-    }
+    // Fallback to project ID only
+    console.log('⚠️ No Service Account found, using Project ID only');
+    
+    const projectId = process.env.FIREBASE_PROJECT_ID || 
+                     process.env.VITE_FIREBASE_PROJECT_ID || 
+                     'bibleverseapp-d43ac';
+    
+    const app = initializeApp({
+      projectId: projectId,
+    });
+
+    console.log(`🔥 Firebase Admin SDK initialized with Project ID: ${projectId}`);
+    return app;
   } catch (error) {
     console.error('❌ Error initializing Firebase Admin SDK:', error);
     throw error;

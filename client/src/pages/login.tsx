@@ -4,7 +4,7 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
-import { Tent, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -68,8 +68,12 @@ export default function Login() {
           <div className="text-center space-y-6">
             <div className="flex justify-center mb-8 relative">
               <div className="absolute inset-0 bg-primary/30 rounded-full blur-2xl scale-110" />
-              <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-primary via-primary to-chart-4 flex items-center justify-center border-4 border-primary/30 shadow-2xl hover-elevate transition-transform hover:scale-110">
-                <Tent className="w-14 h-14 text-primary-foreground drop-shadow-lg" />
+              <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-primary via-primary to-chart-4 flex items-center justify-center border-4 border-primary/30 shadow-2xl hover-elevate transition-transform hover:scale-110 overflow-hidden">
+                <img 
+                  src="/scouts.png" 
+                  alt="Scout Logo" 
+                  className="w-16 h-16 object-contain drop-shadow-lg"
+                />
               </div>
             </div>
             

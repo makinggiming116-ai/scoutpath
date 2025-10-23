@@ -1,7 +1,13 @@
 import { defineConfig } from "drizzle-kit";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
+// Check for database URL in different environment variable names
+const databaseUrl = process.env.DATABASE_URL || 
+                   process.env.DATABASE_PRIVATE_URL || 
+                   process.env.POSTGRES_URL;
+
+if (!databaseUrl) {
+  console.warn("⚠️ No database URL found. Skipping database configuration.");
+  // Don't throw error for Render deployment without database
 }
 
 export default defineConfig({
@@ -9,6 +15,6 @@ export default defineConfig({
   schema: "./shared/schema.ts",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: databaseUrl || "postgresql://placeholder",
   },
 });
