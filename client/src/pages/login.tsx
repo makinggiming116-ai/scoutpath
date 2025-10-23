@@ -81,7 +81,7 @@ export default function Login() {
               <div className="flex items-center justify-center gap-2">
                 <Sparkles className="w-6 h-6 text-primary animate-pulse" />
                 <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-l from-primary via-chart-4 to-primary bg-clip-text text-transparent">
-                  المسار التدريبي لجوالة والقادة
+                  المسار التدريبي للجوالة والقادة
                 </h1>
                 <Sparkles className="w-6 h-6 text-primary animate-pulse" style={{ animationDelay: '0.5s' }} />
               </div>
