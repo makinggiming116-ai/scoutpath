@@ -76,7 +76,7 @@
   --chart-4: 142 70% 40%;
   --chart-5: 280 60% 45%;
 
-  --font-sans: 'IBM Plex Sans Arabic', 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: .75rem;
