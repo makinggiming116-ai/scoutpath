@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowRight, 
-  Download, 
   Lock, 
   FileText, 
   ClipboardList, 
@@ -72,13 +71,6 @@ export default function CourseDetail() {
     );
   }
 
-  const handleDownload = () => {
-    window.open(course.pdfUrl, '_blank');
-    toast({
-      title: "جاري التنزيل",
-      description: "سيتم فتح الملف في نافذة جديدة",
-    });
-  };
 
   const pdfEmbedUrl = convertDriveUrl(course.pdfUrl);
 
@@ -135,19 +127,11 @@ export default function CourseDetail() {
 
           <TabsContent value="training" className="space-y-5">
             <Card className="p-6 border-2 border-primary/30 shadow-xl bg-gradient-to-br from-card to-primary/5">
-              <div className="flex items-center justify-between mb-5">
+              <div className="mb-5">
                 <h3 className="text-xl font-black flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
                   محتوى الدورة
                 </h3>
-                <Button 
-                  onClick={handleDownload} 
-                  className="bg-gradient-to-r from-primary to-chart-4 hover:shadow-xl transition-all font-bold gap-2"
-                  data-testid="button-download-pdf"
-                >
-                  <Download className="w-4 h-4" />
-                  تنزيل الملف
-                </Button>
               </div>
 
               <div className="relative bg-muted/30 rounded-xl overflow-hidden border-2 border-primary/20 shadow-inner" style={{ minHeight: '70vh' }}>
@@ -169,11 +153,6 @@ export default function CourseDetail() {
                 />
               </div>
 
-              <div className="mt-5 p-5 bg-gradient-to-r from-primary/10 via-chart-4/10 to-primary/10 rounded-xl border-2 border-primary/20">
-                <p className="text-sm text-center font-medium">
-                  إذا لم يظهر الملف أعلاه، يمكنك تنزيله مباشرة باستخدام زر "تنزيل الملف"
-                </p>
-              </div>
             </Card>
           </TabsContent>
 
