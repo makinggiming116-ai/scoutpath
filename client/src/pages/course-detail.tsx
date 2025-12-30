@@ -23,6 +23,8 @@ import { courses, convertDriveUrl } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { courseExams } from "@/lib/exams";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 export default function CourseDetail() {
   const [, params] = useRoute("/course/:id");
@@ -32,15 +34,14 @@ export default function CourseDetail() {
   const { toast } = useToast();
 
   const now = new Date();
-  const examGateDate = new Date(now.getFullYear(), 0, 30, 16, 0, 0);
-  if (now.getTime() > examGateDate.getTime()) {
-    examGateDate.setFullYear(now.getFullYear() + 1);
-  }
-  const examGateOpensAt = examGateDate.getTime();
-  const [examGateRemainingSeconds, setExamGateRemainingSeconds] = useState<number | null>(() => {
-    const remaining = Math.ceil((examGateOpensAt - Date.now()) / 1000);
-    return remaining > 0 ? remaining : null;
-  });
+  const defaultOpenAt = new Date(now.getFullYear(), 11, 30, 17, 0, 0).getTime();
+  const defaultCloseAt = new Date(now.getFullYear(), 11, 30, 18, 0, 0).getTime();
+  const [examSchedule, setExamSchedule] = useState<{ openAt: number; closeAt: number }>(() => ({
+    openAt: defaultOpenAt,
+    closeAt: defaultCloseAt,
+  }));
+  const [examWindowRemainingSeconds, setExamWindowRemainingSeconds] = useState<number | null>(null);
+  const [examWindowMode, setExamWindowMode] = useState<"before_open" | "open" | "closed">("before_open");
 
   const [examStartedAt, setExamStartedAt] = useState<number | null>(null);
   const [examAnswers, setExamAnswers] = useState<Record<number, number>>({});
@@ -75,10 +76,82 @@ export default function CourseDetail() {
   }, [courseId]);
 
   useEffect(() => {
+    const scheduleRef = doc(db, "settings", "examSchedule");
+
+    const unsub = onSnapshot(
+      scheduleRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const data: any = snap.data();
+
+        const coerceMillis = (v: any): number | null => {
+          if (typeof v === "number") return v;
+          if (v && typeof v.toMillis === "function") return v.toMillis();
+          if (v && typeof v.seconds === "number") return v.seconds * 1000;
+          return null;
+        };
+
+        const openAt = coerceMillis(data.openAt);
+        const closeAt = coerceMillis(data.closeAt);
+        if (typeof openAt === "number" && typeof closeAt === "number") {
+          setExamSchedule({ openAt, closeAt });
+        }
+      },
+      () => {
+        return;
+      }
+    );
+
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
     const tick = () => {
-      const remaining = Math.ceil((examGateOpensAt - Date.now()) / 1000);
-      setExamGateRemainingSeconds(remaining > 0 ? remaining : null);
+      const nowMs = Date.now();
+      const beforeOpen = nowMs < examSchedule.openAt;
+      const afterClose = nowMs >= examSchedule.closeAt;
+
+      if (beforeOpen) {
+        const remaining = Math.ceil((examSchedule.openAt - nowMs) / 1000);
+        setExamWindowMode("before_open");
+        setExamWindowRemainingSeconds(remaining > 0 ? remaining : null);
+        return;
+      }
+
+      if (afterClose) {
+        setExamWindowMode("closed");
+        setExamWindowRemainingSeconds(null);
+        return;
+      }
+
+      const remaining = Math.ceil((examSchedule.closeAt - nowMs) / 1000);
+      setExamWindowMode("open");
+      setExamWindowRemainingSeconds(remaining > 0 ? remaining : null);
     };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [examSchedule.closeAt, examSchedule.openAt]);
+
+  useEffect(() => {
+    if (!courseExam) return;
+    if (!examStartedAt) return;
+    if (examResult) return;
+    if (examWindowMode !== "open") return;
+
+    const msUntilClose = examSchedule.closeAt - Date.now();
+    if (msUntilClose <= 0) {
+      submitExam();
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      submitExam();
+    }, msUntilClose);
+
+    return () => clearTimeout(timeout);
+  }, [courseExam, examResult, examSchedule.closeAt, examStartedAt, examWindowMode]);
 
     tick();
     const interval = setInterval(tick, 1000);
@@ -214,10 +287,20 @@ export default function CourseDetail() {
     if (!user) return;
     if (isCompleted) return;
     if (isCooldownActive) return;
-    if (examGateRemainingSeconds !== null) {
+
+    if (examWindowMode === "before_open") {
       toast({
         title: "الامتحانات غير متاحة حالياً",
-        description: "سيتم فتح الامتحانات يوم 30/1 الساعة 4:00 مساءً.",
+        description: "سيتم فتح الامتحانات يوم 30/12 الساعة 5:00 مساءً.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (examWindowMode === "closed") {
+      toast({
+        title: "تم إنهاء الامتحان",
+        description: "الامتحانات مغلقة الآن.",
         variant: "destructive",
       });
       return;
@@ -426,7 +509,7 @@ export default function CourseDetail() {
                   </p>
                 </div>
               </Card>
-            ) : examGateRemainingSeconds !== null ? (
+            ) : examWindowMode === "before_open" ? (
               <Card className="p-10 text-center space-y-6 bg-gradient-to-br from-card to-muted/10 border-2 border-muted shadow-xl">
                 <div className="w-24 h-24 rounded-2xl bg-muted mx-auto flex items-center justify-center">
                   <Lock className="w-12 h-12 text-muted-foreground" />
@@ -434,10 +517,46 @@ export default function CourseDetail() {
                 <div className="space-y-3">
                   <h3 className="text-2xl font-black">الامتحانات ستُفتح قريباً</h3>
                   <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                    موعد فتح الامتحانات: 30/1 الساعة 4:00 مساءً
+                    موعد فتح الامتحانات: 30/12 الساعة 5:00 مساءً
                   </p>
-                  <p className="text-3xl font-black text-primary">{formatSeconds(examGateRemainingSeconds)}</p>
+                  <p className="text-3xl font-black text-primary">{formatSeconds(examWindowRemainingSeconds ?? 0)}</p>
                 </div>
+              </Card>
+            ) : examWindowMode === "closed" ? (
+              <Card className="p-10 text-center space-y-6 bg-gradient-to-br from-card to-muted/10 border-2 border-muted shadow-xl">
+                <div className="w-24 h-24 rounded-2xl bg-muted mx-auto flex items-center justify-center">
+                  <Lock className="w-12 h-12 text-muted-foreground" />
+                </div>
+                {examResult ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black">تم إنهاء الامتحان</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+                        الامتحانات مغلقة الآن.
+                      </p>
+                    </div>
+                    <Alert variant={examResult.passed ? "default" : "destructive"}>
+                      <AlertTitle className="font-black">نتيجة الامتحان</AlertTitle>
+                      <AlertDescription>
+                        نتيجتك {examResult.score} من {courseExam.questions.length}.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                ) : examStartedAt ? (
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-black">انتهى وقت الامتحان</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+                      جاري تسليم الامتحان وحساب النتيجة...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-black">تم إنهاء الامتحان</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+                      الامتحانات مغلقة الآن.
+                    </p>
+                  </div>
+                )}
               </Card>
             ) : isCooldownActive ? (
               <Card className="p-10 text-center space-y-6 bg-gradient-to-br from-card to-muted/10 border-2 border-muted shadow-xl">
