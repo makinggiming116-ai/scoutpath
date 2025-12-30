@@ -138,9 +138,10 @@ export default function CourseDetail() {
     if (!courseExam) return;
     if (!examStartedAt) return;
     if (examResult) return;
-    if (examWindowMode !== "open") return;
+    const nowMs = Date.now();
+    if (nowMs < examSchedule.openAt) return;
 
-    const msUntilClose = examSchedule.closeAt - Date.now();
+    const msUntilClose = examSchedule.closeAt - nowMs;
     if (msUntilClose <= 0) {
       submitExam();
       return;
@@ -151,12 +152,7 @@ export default function CourseDetail() {
     }, msUntilClose);
 
     return () => clearTimeout(timeout);
-  }, [courseExam, examResult, examSchedule.closeAt, examStartedAt, examWindowMode]);
-
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [examGateOpensAt]);
+  }, [courseExam, examResult, examSchedule.closeAt, examSchedule.openAt, examStartedAt]);
 
   const examStorageKey = user ? `courseExam:${user.id}:${courseId}` : null;
 
@@ -166,6 +162,20 @@ export default function CourseDetail() {
     const mm = Math.floor((clamped % 3600) / 60);
     const ss = clamped % 60;
     return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  };
+
+  const formatDateTime = (ms: number) => {
+    try {
+      return new Intl.DateTimeFormat("ar-EG", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(ms));
+    } catch {
+      return new Date(ms).toLocaleString();
+    }
   };
 
   const loadExamState = () => {
@@ -291,7 +301,7 @@ export default function CourseDetail() {
     if (examWindowMode === "before_open") {
       toast({
         title: "الامتحانات غير متاحة حالياً",
-        description: "سيتم فتح الامتحانات يوم 30/12 الساعة 5:00 مساءً.",
+        description: `سيتم فتح الامتحانات في: ${formatDateTime(examSchedule.openAt)}`,
         variant: "destructive",
       });
       return;
@@ -517,7 +527,7 @@ export default function CourseDetail() {
                 <div className="space-y-3">
                   <h3 className="text-2xl font-black">الامتحانات ستُفتح قريباً</h3>
                   <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                    موعد فتح الامتحانات: 30/12 الساعة 5:00 مساءً
+                    موعد فتح الامتحانات: {formatDateTime(examSchedule.openAt)}
                   </p>
                   <p className="text-3xl font-black text-primary">{formatSeconds(examWindowRemainingSeconds ?? 0)}</p>
                 </div>
