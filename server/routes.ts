@@ -6,6 +6,17 @@ import { FirestoreUserService } from "./firebase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  const requireAdmin = (req: any, res: any): boolean => {
+    const required = process.env.ADMIN_TOKEN;
+    if (!required) return true;
+    const tokenFromHeader = req.headers["x-admin-token"];
+    const tokenFromBody = req.body?.token;
+    const token = typeof tokenFromHeader === "string" ? tokenFromHeader : typeof tokenFromBody === "string" ? tokenFromBody : "";
+    if (token && token === required) return true;
+    res.status(401).json({ error: "Unauthorized", message: "غير مصرح" });
+    return false;
+  };
+
   // Barcode login endpoint (Using Firestore)
   app.post("/api/auth/barcode-login", async (req, res) => {
     try {
@@ -84,6 +95,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         error: "Update failed",
         message: "فشل تحديث التقدم",
+      });
+    }
+  });
+
+  app.get("/api/admin/users/basic", async (req, res) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+      const users = await FirestoreUserService.listUsersBasic();
+      res.json({ users });
+    } catch (error) {
+      console.error("List users basic error:", error);
+      res.status(500).json({
+        error: "Server error",
+        message: "حدث خطأ في جلب بيانات المستخدمين",
+      });
+    }
+  });
+
+  app.patch("/api/admin/users/names", async (req, res) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+
+      const bodySchema = z.object({
+        token: z.string().optional(),
+        updates: z
+          .array(
+            z.object({
+              serial: z.string().min(1),
+              name: z.string().min(1),
+            })
+          )
+          .min(1),
+      });
+
+      const { updates } = bodySchema.parse(req.body);
+      const result = await FirestoreUserService.bulkUpdateNamesBySerial(updates);
+      res.json({ result });
+    } catch (error) {
+      console.error("Bulk update names error:", error);
+      res.status(500).json({
+        error: "Update failed",
+        message: "فشل تحديث الأسماء",
       });
     }
   });

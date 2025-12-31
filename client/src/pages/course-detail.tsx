@@ -33,15 +33,9 @@ export default function CourseDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const now = new Date();
-  const defaultOpenAt = new Date(now.getFullYear(), 11, 30, 17, 0, 0).getTime();
-  const defaultCloseAt = new Date(now.getFullYear(), 11, 30, 18, 0, 0).getTime();
-  const [examSchedule, setExamSchedule] = useState<{ openAt: number; closeAt: number }>(() => ({
-    openAt: defaultOpenAt,
-    closeAt: defaultCloseAt,
-  }));
+  const [examSchedule, setExamSchedule] = useState<{ openAt: number; closeAt: number } | null>(null);
   const [examWindowRemainingSeconds, setExamWindowRemainingSeconds] = useState<number | null>(null);
-  const [examWindowMode, setExamWindowMode] = useState<"before_open" | "open" | "closed">("before_open");
+  const [examWindowMode, setExamWindowMode] = useState<"before_open" | "open" | "closed">("closed");
 
   const [examStartedAt, setExamStartedAt] = useState<number | null>(null);
   const [examAnswers, setExamAnswers] = useState<Record<number, number>>({});
@@ -67,6 +61,23 @@ export default function CourseDetail() {
   }, [setLocation]);
 
   useEffect(() => {
+    if (!user?.id) return;
+
+    (async () => {
+      try {
+        const res = await apiRequest("GET", `/api/users/${user.id}`);
+        const data = await res.json();
+        if (data?.user) {
+          localStorage.setItem("currentUser", JSON.stringify(data.user));
+          setUser(data.user);
+        }
+      } catch {
+        return;
+      }
+    })();
+  }, [user?.id]);
+
+  useEffect(() => {
     examAnswersRef.current = examAnswers;
   }, [examAnswers]);
 
@@ -81,7 +92,10 @@ export default function CourseDetail() {
     const unsub = onSnapshot(
       scheduleRef,
       (snap) => {
-        if (!snap.exists()) return;
+        if (!snap.exists()) {
+          setExamSchedule(null);
+          return;
+        }
         const data: any = snap.data();
 
         const coerceMillis = (v: any): number | null => {
@@ -93,9 +107,12 @@ export default function CourseDetail() {
 
         const openAt = coerceMillis(data.openAt);
         const closeAt = coerceMillis(data.closeAt);
-        if (typeof openAt === "number" && typeof closeAt === "number") {
+        if (typeof openAt === "number" && typeof closeAt === "number" && closeAt > openAt) {
           setExamSchedule({ openAt, closeAt });
+          return;
         }
+
+        setExamSchedule(null);
       },
       () => {
         return;
@@ -107,6 +124,12 @@ export default function CourseDetail() {
 
   useEffect(() => {
     const tick = () => {
+      if (!examSchedule) {
+        setExamWindowMode("closed");
+        setExamWindowRemainingSeconds(null);
+        return;
+      }
+
       const nowMs = Date.now();
       const beforeOpen = nowMs < examSchedule.openAt;
       const afterClose = nowMs >= examSchedule.closeAt;
@@ -132,12 +155,13 @@ export default function CourseDetail() {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [examSchedule.closeAt, examSchedule.openAt]);
+  }, [examSchedule]);
 
   useEffect(() => {
     if (!courseExam) return;
     if (!examStartedAt) return;
     if (examResult) return;
+    if (!examSchedule) return;
     const nowMs = Date.now();
     if (nowMs < examSchedule.openAt) return;
 
@@ -152,7 +176,7 @@ export default function CourseDetail() {
     }, msUntilClose);
 
     return () => clearTimeout(timeout);
-  }, [courseExam, examResult, examSchedule.closeAt, examSchedule.openAt, examStartedAt]);
+  }, [courseExam, examResult, examSchedule, examStartedAt]);
 
   const examStorageKey = user ? `courseExam:${user.id}:${courseId}` : null;
 
@@ -217,7 +241,10 @@ export default function CourseDetail() {
   const inProgressCourseId = currentStage === 7.5 ? 8 : currentStage < 8 ? currentStage : null;
 
   const isUnlocked = courseId <= unlockStage;
-  const isCompleted = (user?.progress.completedExams || []).includes(courseId) || (currentStage >= 8 && courseId === 8);
+  const isCompleted =
+    (user?.progress.completedExams || []).includes(courseId) ||
+    courseId < currentStage ||
+    (currentStage >= 8 && courseId === 8);
   const isInProgress = inProgressCourseId !== null && courseId === inProgressCourseId;
 
   const isCooldownActive = examCooldownUntil !== null && Date.now() < examCooldownUntil;
@@ -301,7 +328,7 @@ export default function CourseDetail() {
     if (examWindowMode === "before_open") {
       toast({
         title: "الامتحانات غير متاحة حالياً",
-        description: `سيتم فتح الامتحانات في: ${formatDateTime(examSchedule.openAt)}`,
+        description: `سيتم فتح الامتحانات في: ${formatDateTime(examSchedule?.openAt ?? Date.now())}`,
         variant: "destructive",
       });
       return;
@@ -527,7 +554,7 @@ export default function CourseDetail() {
                 <div className="space-y-3">
                   <h3 className="text-2xl font-black">الامتحانات ستُفتح قريباً</h3>
                   <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                    موعد فتح الامتحانات: {formatDateTime(examSchedule.openAt)}
+                    موعد فتح الامتحانات: {formatDateTime(examSchedule?.openAt ?? Date.now())}
                   </p>
                   <p className="text-3xl font-black text-primary">{formatSeconds(examWindowRemainingSeconds ?? 0)}</p>
                 </div>
@@ -809,7 +836,7 @@ export default function CourseDetail() {
                     >
                       <div className="mx-auto w-[92%]" dir="rtl">
                         <div
-                          className="text-2xl md:text-5xl leading-tight text-center"
+                          className="text-xl md:text-4xl leading-tight text-center"
                           style={{ color: "#1e3a8a", textShadow: "0 2px 10px rgba(255,255,255,0.8)", marginRight: "22%" }}
                         >
                           {user.name}

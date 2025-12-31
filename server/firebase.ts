@@ -320,4 +320,61 @@ export class FirestoreUserService {
     }
   }
 
+  static async listUsersBasic(): Promise<Array<{ id: string; serial: string; name: string }>> {
+    const querySnapshot = await this.collection.get();
+
+    return querySnapshot.docs
+      .map((d) => {
+        const data: any = d.data();
+        return {
+          id: d.id,
+          serial: String(data.serial ?? ""),
+          name: String(data.name ?? ""),
+        };
+      })
+      .filter((u) => u.serial && u.name);
+  }
+
+  static async bulkUpdateNamesBySerial(
+    updates: Array<{ serial: string; name: string }>
+  ): Promise<{ updatedCount: number; missingSerials: string[] }> {
+    const querySnapshot = await this.collection.get();
+    const refBySerial = new Map<string, FirebaseFirestore.DocumentReference>();
+
+    querySnapshot.docs.forEach((d) => {
+      const data: any = d.data();
+      const serial = String(data.serial ?? "");
+      if (!serial) return;
+      refBySerial.set(serial, d.ref);
+    });
+
+    const missingSerials: string[] = [];
+    const normalized = updates
+      .map((u) => ({ serial: String(u.serial).trim(), name: String(u.name).trim() }))
+      .filter((u) => u.serial && u.name);
+
+    const chunks: Array<Array<{ serial: string; name: string }>> = [];
+    for (let i = 0; i < normalized.length; i += 450) {
+      chunks.push(normalized.slice(i, i + 450));
+    }
+
+    let updatedCount = 0;
+
+    for (const chunk of chunks) {
+      const batch = db.batch();
+      for (const u of chunk) {
+        const ref = refBySerial.get(u.serial);
+        if (!ref) {
+          missingSerials.push(u.serial);
+          continue;
+        }
+        batch.update(ref, { name: u.name });
+        updatedCount += 1;
+      }
+      await batch.commit();
+    }
+
+    return { updatedCount, missingSerials };
+  }
+
 }
