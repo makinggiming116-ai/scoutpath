@@ -29,7 +29,20 @@ export class FirestoreUserService {
         console.log(`  ${index + 1}. ID: ${doc.id}, Name: ${data.name}, Stage: ${data.currentStage}`);
       });
 
-      const doc = querySnapshot.docs[0];
+      const docs = querySnapshot.docs;
+      const bestDoc = docs
+        .map((d) => {
+          const data = d.data() as any;
+          const completedLen = Array.isArray(data?.progress?.completedExams) ? data.progress.completedExams.length : 0;
+          const stage = typeof data?.currentStage === 'number' ? data.currentStage : 0;
+          return { d, stage, completedLen };
+        })
+        .sort((a, b) => {
+          if (b.stage !== a.stage) return b.stage - a.stage;
+          return b.completedLen - a.completedLen;
+        })[0]?.d;
+
+      const doc = bestDoc ?? docs[0];
       const userData = doc.data();
       
       const user = {
@@ -97,24 +110,50 @@ export class FirestoreUserService {
         return null;
       }
 
-      const updateData: any = {};
-      if (updates.openedCourses) updateData['progress.openedCourses'] = updates.openedCourses;
-      if (updates.completedExams) {
-        const normalizedCompletedExams = Array.from(
-          new Set(updates.completedExams.filter((n) => typeof n === 'number'))
-        ).sort((a, b) => a - b);
-        updateData['progress.completedExams'] = normalizedCompletedExams;
+      const userData = doc.data() as any;
+      const existingProgress = userData?.progress ?? {
+        openedCourses: [],
+        completedExams: [],
+        scores: [],
+      };
 
-        const completedCount = normalizedCompletedExams.length;
-        const currentStage =
-          completedCount >= 8
-            ? 8
-            : completedCount === 7
-            ? 7.5
-            : completedCount + 1;
-        updateData['currentStage'] = currentStage;
+      const normalizeNumberArray = (arr: unknown): number[] =>
+        Array.from(new Set((Array.isArray(arr) ? arr : []).filter((n) => typeof n === 'number'))).sort((a, b) => a - b);
+
+      const mergedOpenedCourses = normalizeNumberArray([
+        ...normalizeNumberArray(existingProgress?.openedCourses),
+        ...normalizeNumberArray(updates.openedCourses),
+      ]);
+
+      const mergedCompletedExams = normalizeNumberArray([
+        ...normalizeNumberArray(existingProgress?.completedExams),
+        ...normalizeNumberArray(updates.completedExams),
+      ]);
+
+      const computeCurrentStage = (completed: number[]): number => {
+        const set = new Set(completed);
+        let k = 0;
+        while (set.has(k + 1)) k++;
+        if (k >= 8) return 8;
+        if (k === 7) return 7.5;
+        return k === 0 ? 1 : k + 1;
+      };
+
+      const proposedStage = computeCurrentStage(mergedCompletedExams);
+      const existingStage = typeof userData?.currentStage === 'number' ? userData.currentStage : 1;
+      const safeStage = Math.max(existingStage, proposedStage);
+
+      const updateData: any = {
+        'progress.openedCourses': mergedOpenedCourses,
+        'progress.completedExams': mergedCompletedExams,
+        currentStage: safeStage,
+      };
+
+      if (updates.scores) {
+        const existingScores = Array.isArray(existingProgress?.scores) ? existingProgress.scores : [];
+        const incomingScores = Array.isArray(updates.scores) ? updates.scores : [];
+        updateData['progress.scores'] = incomingScores.length >= existingScores.length ? incomingScores : existingScores;
       }
-      if (updates.scores) updateData['progress.scores'] = updates.scores;
 
       await userRef.update(updateData);
       

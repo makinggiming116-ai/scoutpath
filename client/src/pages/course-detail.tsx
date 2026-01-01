@@ -377,12 +377,8 @@ export default function CourseDetail() {
     }
 
     try {
-      const completedExams = Array.from(new Set([...(user.progress.completedExams || []), courseId])).sort(
-        (a, b) => a - b
-      );
-
       const response = await apiRequest("PATCH", `/api/users/${user.id}/progress`, {
-        completedExams,
+        completedExams: [courseId],
       });
       const data = await response.json();
 
